@@ -4,12 +4,12 @@
 한국어/영어 입력을 지원하며, GPU 가속, Hybrid(NLP+LLM) 모드, LLM Only 모드, 웹 기반 시각화, LLM 연동을 제공합니다.
 현재, 프로포 타입이니 참고하시기 바랍니다.
 
-
+---
+## 테스트 화면
 
 ![image](https://github.com/user-attachments/assets/6d23a7e2-66fc-47b1-a5ac-3e4e38acc1e0)
-![image](https://github.com/user-attachments/assets/6d23a7e2-66fc-47b1-a5ac-3e4e38acc1e0)
 
-
+---
 ---
 
 ## 주요 기능
