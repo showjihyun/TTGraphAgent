@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU 가속 NLP 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; height: 100px; margin: 10px 0; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .entity { background: #d1ecf1; padding: 5px; margin: 2px; border-radius: 3px; display: inline-block; }
+        .relation { background: #d4edda; padding: 5px; margin: 2px; border-radius: 3px; display: inline-block; }
+        .loading { color: #007bff; font-style: italic; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .gpu-info { background: #e7f3ff; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .method-selector { margin: 15px 0; }
+        .method-selector label { margin-right: 15px; }
+        .stats { background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 GPU 가속 NLP 테스트</h1>
+        
+        <div class="gpu-info">
+            <h3>시스템 상태</h3>
+            <div id="systemStatus">시스템 상태 확인 중...</div>
+        </div>
+        
+        <h3>텍스트 입력</h3>
+        <textarea id="inputText" placeholder="분석할 텍스트를 입력하세요... (예: 김철수 교수는 서울대학교에서 인공지능을 연구하고 있다.)">김철수 교수는 서울대학교에서 인공지능을 연구하고 있다.</textarea>
+        
+        <div class="method-selector">
+            <h4>처리 방법 선택:</h4>
+            <label>
+                <input type="radio" name="method" value="hybrid" checked> 
+                <strong>Hybrid</strong> (NLP + LLM, GPU 가속, 권장)
+            </label>
+            <label>
+                <input type="radio" name="method" value="nlp_only"> 
+                <strong>NLP Only</strong> (GPU 가속, 빠름)
+            </label>
+            <label>
+                <input type="radio" name="method" value="llm_only"> 
+                <strong>LLM Only</strong> (기존 방식)
+            </label>
+        </div>
+        
+        <button onclick="processText()">🔍 분석 시작</button>
+        
+        <div id="result" class="result" style="display: none;">
+            <h3>분석 결과</h3>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // 시스템 상태 확인
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('http://localhost:8000/api/health');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('systemStatus');
+                statusDiv.innerHTML = `
+                    <strong>상태:</strong> <span class="${data.status === 'healthy' ? 'success' : 'error'}">${data.status}</span> <br>
+                    <strong>NLP 프로세서:</strong> <span class="${data.nlp_processor === 'available' ? 'success' : 'error'}">${data.nlp_processor}</span> <br>
+                    <strong>LLM 추출기:</strong> <span class="${data.llm_extractor === 'available' ? 'success' : 'error'}">${data.llm_extractor}</span> <br>
+                    <strong>권장 방법:</strong> ${data.recommended_method}
+                `;
+                
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = `<span class="error">연결 실패: ${error.message}</span>`;
+            }
+        }
+        
+        // 텍스트 처리
+        async function processText() {
+            const text = document.getElementById('inputText').value;
+            const method = document.querySelector('input[name="method"]:checked').value;
+            const resultDiv = document.getElementById('result');
+            const contentDiv = document.getElementById('resultContent');
+            
+            if (!text.trim()) {
+                alert('텍스트를 입력해주세요.');
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            contentDiv.innerHTML = '<div class="loading">🔄 GPU 가속 처리 중...</div>';
+            
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch('http://localhost:8000/api/text-to-graph', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        language: 'korean',
+                        processing_method: method
+                    })
+                });
+                
+                const endTime = Date.now();
+                const processingTime = endTime - startTime;
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // 결과 표시
+                let html = `
+                    <div class="success">
+                        ✅ 처리 완료! (${processingTime}ms, ${method} 방식)
+                    </div>
+                    <br>
+                    <strong>엔티티 (${data.nodes ? data.nodes.length : 0}개):</strong><br>
+                `;
+                
+                if (data.nodes && data.nodes.length > 0) {
+                    data.nodes.forEach(node => {
+                        const label = node.label || node.id || 'N/A';
+                        const group = node.group || node.node_type || 'MISC';
+                        html += `<span class="entity">${label} (${group})</span> `;
+                    });
+                } else {
+                    html += '<em>엔티티 없음</em>';
+                }
+                
+                html += `<br><br><strong>관계 (${data.edges ? data.edges.length : 0}개):</strong><br>`;
+                
+                if (data.edges && data.edges.length > 0) {
+                    data.edges.forEach(edge => {
+                        const from = edge.from || edge.source || 'N/A';
+                        const to = edge.to || edge.target || 'N/A';
+                        const label = edge.label || edge.relation || 'N/A';
+                        html += `<span class="relation">${from} → ${to} (${label})</span> `;
+                    });
+                } else {
+                    html += '<em>관계 없음</em>';
+                }
+                
+                // 통계 정보
+                if (data.summary) {
+                    html += `<div class="stats">
+                        <strong>📊 처리 통계:</strong><br>
+                        처리 방법: ${data.summary.processing_method || method}<br>
+                        총 엔티티: ${data.summary.total_entities || 0}개<br>
+                        총 관계: ${data.summary.total_relations || 0}개<br>
+                        엔티티 타입: ${(data.summary.entity_types || []).join(', ') || '없음'}<br>
+                        관계 타입: ${(data.summary.relation_types || []).join(', ') || '없음'}
+                    </div>`;
+                }
+                
+                contentDiv.innerHTML = html;
+                
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="error">❌ 오류 발생: ${error.message}</div>`;
+            }
+        }
+        
+        // 페이지 로드 시 시스템 상태 확인
+        window.onload = checkSystemStatus;
+    </script>
+</body>
+</html> 

@@ -1,0 +1,39 @@
+﻿{
+    "nodes":  [
+
+              ],
+    "edges":  [
+
+              ],
+    "summary":  {
+                    "node_count":  0,
+                    "edge_count":  0,
+                    "node_types":  [
+
+                                   ],
+                    "processing_language":  "korean",
+                    "total_entities":  0,
+                    "total_relations":  0,
+                    "entity_types":  [
+
+                                     ],
+                    "relation_types":  [
+
+                                       ]
+                },
+    "processing_method":  "hybrid",
+    "nlp_stats":  {
+                      "total_entities":  0,
+                      "total_relations":  0,
+                      "entity_types":  [
+
+                                       ],
+                      "relation_types":  [
+
+                                         ],
+                      "avg_entity_confidence":  0,
+                      "avg_relation_confidence":  0
+                  },
+    "original_text":  "??? ??? ??????? ????? ???? ??.",
+    "preprocessed_text":  ""
+}

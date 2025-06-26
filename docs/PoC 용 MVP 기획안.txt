@@ -1,0 +1,136 @@
+좋습니다. 아래는 “Self-Evolving Knowledge Graphs using Agentic Systems” 개념 기반의 **PoC(Proof of Concept) 프로토타입 개발 기획안**입니다. 이 PoC는 단기간 내에 핵심 기능을 검증하고, 실제 적용 가능성과 사용자 피드백을 확보하기 위한 목적으로 설계됩니다.
+
+---
+
+## 📌 PoC 프로토타입 개발 기획안
+
+### 1. 🎯 **목표**
+
+* LLM 기반으로 **문서에서 엔티티 및 관계를 추출**하여 **지식 그래프 생성**
+* 사용자가 웹 UI에서 **텍스트를 입력하거나 업로드**하고, 그 결과로 **자동 생성된 지식 그래프**를 확인
+* 추출된 그래프에 대해 **에이전트 기반으로 간단한 확장** 또는 **질의 응답(GraphRAG)** 테스트
+
+---
+
+### 2. 🧩 **핵심 기능 (MVP 범위)**
+
+| 기능 영역         | 기능 상세                                      |
+| ------------- | ------------------------------------------ |
+| 📥 문서 입력      | 텍스트 입력 또는 PDF 업로드 (단일 문서 기준)               |
+| 🧠 엔티티/관계 추출  | LLM(OpenAI GPT-4 또는 LLaMA3) 기반 엔티티 및 관계 추출 |
+| 🧱 그래프 생성     | 추출된 엔티티/관계로 지식 그래프 생성 (Neo4j 사용)           |
+| 🌐 웹 UI 시각화   | 기본 D3.js 기반 그래프 뷰어 제공                      |
+| 🤖 에이전트 확장    | 추출 결과 기반 관계 보강 (Rule 또는 LLM 활용)            |
+| ❓ 질의 응답 (선택적) | 사용자가 자연어로 질문 → LLM + 그래프 기반 응답 (GraphRAG)  |
+
+---
+
+### 3. 🏗️ 아키텍처 구성
+
+```plaintext
+사용자
+  ↓
+[Front: React + D3]
+  ↓            ↑
+[FastAPI Backend] ← GraphRAG 질의(Optional)
+  ↓
+[LLM (API or Local)]
+  ↓
+[엔티티 및 관계 추출]
+  ↓
+[Neo4j Graph DB]
+```
+
+* **LLM 모델**: OpenAI GPT-4 또는 LLaMA3 API 사용 (RAG 구성 시)
+* **GraphDB**: Neo4j (Bolt 연결), `nodes`: Entity, `relations`: extracted semantic links
+* **Agent**: 단순 rule-based 추론 or GPT 기반로 확장성 테스트
+
+---
+
+### 4. 📄 예시 시나리오
+
+#### 입력 문서:
+
+> “Tesla는 2023년에 전기차 부문에서 매출 800억 달러를 기록했다. CEO Elon Musk는 중국과의 협업 확대를 발표했다.”
+
+#### 추출 그래프:
+
+* **Entity Nodes**: Tesla, Elon Musk, 중국
+* **Relations**: Tesla → CEO → Elon Musk, Tesla → 협업 → 중국, Tesla → 매출 → 800억달러
+* **이벤트 태그**: 2023년
+
+---
+
+### 5. ⏱️ 개발 일정 (2\~3주 내 PoC)
+
+| 주차  | 주요 작업                                        |
+| --- | -------------------------------------------- |
+| 1주차 | UI/UX 스켈레톤 + LLM 추출기 구축 (Prompt 설계 및 API 연동) |
+| 2주차 | Neo4j 연결 + 추출된 데이터 그래프화 + 시각화 적용             |
+| 3주차 | 에이전트 기반 간단한 확장/보강 로직 구현, 결과 검토, UI 개선        |
+
+---
+
+### 6. 🧪 테스트 및 검증 지표
+
+| 항목         | 측정 지표                |
+| ---------- | -------------------- |
+| 엔티티 추출 정확도 | 주요 개념 누락률 / 과잉 추출률   |
+| 관계 표현 품질   | 유효 관계 비율 (manual 평가) |
+| UI 사용성     | 관계 시각화 직관성 피드백       |
+| 자동 확장 효과   | 에이전트 보강 후 정보 확장률     |
+
+---
+
+### 7. 🛠️ 기술 스택 요약
+
+| 분야    | 기술                                      |
+| ----- | --------------------------------------- |
+| 백엔드   | Python, FastAPI, LangChain (GraphRAG 시) |
+| 프론트   | React, D3.js / vis-network              |
+| DB    | Neo4j (Bolt), 옵션: ArangoDB or Memgraph  |
+| AI 모델 | OpenAI GPT-4 / LLaMA3 (API), spaCy 보완   |
+| 인프라   | Docker + docker-compose (단일 노드 기준)      |
+
+---
+
+### 8. 📁 폴더 구조 예시
+
+```bash
+DBGraphAgent/
+├── backend/
+│   ├── main.py
+│   ├── routers/
+│   ├── services/
+│   └── agents/
+├── frontend/
+│   ├── public/
+│   └── src/
+├── data/
+│   └── samples/
+├── neo4j/ (docker)
+├── prompt_templates/
+├── README.md
+└── docker-compose.yml
+```
+
+---
+
+## ✅ 마무리
+
+이 PoC는 다음을 증명하는 것이 목표입니다:
+
+* LLM이 문서에서 유용한 그래프 구조를 생성할 수 있음
+* 사용자에게 유의미한 인터랙션을 제공할 수 있음 (시각화 + 확장)
+* 확장 가능한 구조로 향후 Agent Loop, RAG, 지식 기반 응용으로 연결 가능
+
+---
+
+필요하시면 아래 항목도 추가 제공 가능합니다:
+
+* [ ] LLM Prompt 샘플
+* [ ] 엔티티/관계 스키마 정의
+* [ ] `docker-compose` 및 `requirements.txt`
+* [ ] Postman용 API 테스트 스크립트
+
+원하시면 바로 이어서 도와드릴게요.
