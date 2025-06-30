@@ -130,39 +130,22 @@ class AdvancedNLPProcessor:
             else:
                 self.korean_analyzer = None
             
-            # 3. HuggingFace NER 모델 (선택적)
-            try:
-                if self.language == "korean":
-                    model_name = "klue/bert-base-korean-ner"
-                else:
-                    model_name = "dbmdz/bert-large-cased-finetuned-conll03-english"
-                
-                # 강화된 GPU 우선 사용 설정
-                import torch
-                
-                if torch.cuda.is_available():
-                    device = 0  # GPU device 0
-                    torch.cuda.set_device(0)
-                    logger.info(f"NER will use GPU: {torch.cuda.get_device_name(0)}")
-                else:
-                    device = -1  # CPU
-                    logger.warning("NER will use CPU")
-                
-                # 모델 다운로드 시도 (GPU 우선)
-                self.ner_pipeline = pipeline(
-                    "ner",
-                    model=model_name,
-                    tokenizer=model_name,
-                    aggregation_strategy="simple",
-                    device=device,
-                    torch_dtype=torch.float16 if device == 0 else torch.float32  # GPU에서 float16 사용
-                )
-                device_name = "GPU" if device == 0 else "CPU"
-                logger.info(f"NER pipeline initialized with {model_name} on {device_name}")
-                    
-            except Exception as e:
-                logger.warning(f"NER pipeline failed to load: {e}")
-                self.ner_pipeline = None
+            # 3. HuggingFace KoBERT NER 모델 (한국어)
+            import torch
+            from transformers import pipeline
+            if self.language == "korean":
+                model_name = "bespin-global/klue-roberta-base-ner"
+            else:
+                model_name = "dbmdz/bert-large-cased-finetuned-conll03-english"
+            device = 0 if torch.cuda.is_available() else -1
+            self.ner_pipeline = pipeline(
+                "ner",
+                model=model_name,
+                tokenizer=model_name,
+                aggregation_strategy="simple",
+                device=device,
+                torch_dtype=torch.float16 if device == 0 else torch.float32
+            )
             
             # 4. 문장 임베딩 모델 (선택적)
             try:
@@ -280,22 +263,20 @@ class AdvancedNLPProcessor:
     def extract_entities(self, text: str) -> List[Entity]:
         """2️⃣ 엔티티 추출 (NER)"""
         entities = []
-        
         try:
-            # HuggingFace NER 사용
+            # HuggingFace KoBERT NER 사용 (한국어)
             if self.ner_pipeline:
                 ner_results = self.ner_pipeline(text)
                 for i, result in enumerate(ner_results):
                     entity = Entity(
                         id=f"entity_{i}",
                         text=result['word'],
-                        label=result['entity_group'],
+                        label=result['entity_group'] if 'entity_group' in result else result['entity'],
                         start=result['start'],
                         end=result['end'],
-                        confidence=result['score']
+                        confidence=float(result.get('score', 1.0))
                     )
                     entities.append(entity)
-            
             # SpaCy NER 보완
             if self.spacy_nlp and len(entities) < 3:
                 doc = self.spacy_nlp(text)
@@ -309,18 +290,14 @@ class AdvancedNLPProcessor:
                         confidence=0.8
                     )
                     entities.append(entity)
-            
             # 폴백: 규칙 기반 엔티티 추출
             if len(entities) < 2:
                 entities.extend(self._extract_entities_rule_based(text))
-            
             # 중복 제거 및 정제
             entities = self._deduplicate_entities(entities)
-            
         except Exception as e:
             logger.error(f"Entity extraction failed: {e}")
             entities = self._extract_entities_rule_based(text)
-        
         return entities
     
     def extract_relations(self, text: str, entities: List[Entity]) -> List[Relation]:
@@ -390,9 +367,9 @@ class AdvancedNLPProcessor:
             for i, relation in enumerate(relations):
                 edge = {
                     "id": f"edge_{i}",
-                    "from": relation.source,  # 이미 텍스트로 설정됨
-                    "to": relation.target,    # 이미 텍스트로 설정됨
-                    "label": relation.relation,
+                    "source": relation.source,  # 프론트엔드와 일치
+                    "target": relation.target,  # 프론트엔드와 일치
+                    "relation": relation.relation,  # 프론트엔드와 일치
                     "confidence": relation.confidence,
                     "context": relation.context,
                     "attributes": relation.attributes
@@ -445,6 +422,8 @@ class AdvancedNLPProcessor:
                 patterns = [
                     # 인명 패턴 (명확한 호칭이 있는 경우만)
                     (r'[가-힣]{2,4}(?:\s*(?:씨|님|교수|박사|대표|회장|사장|선생|부장|과장|팀장))', "PERSON", 0.8),
+                    # 인명 패턴 (호칭 없는 2~4글자 한글 이름 + 조사)
+                    (r'([가-힣]{2,4})(?=[은는이가를]\b)', "PERSON", 0.7),
                     # 조직명 패턴 (명확한 조직 접미사가 있는 경우만)
                     (r'[가-힣A-Za-z]{2,}(?:회사|기업|대학교|대학|연구소|재단|협회|센터|청|처|부서)', "ORG", 0.7),
                     # 장소 패턴 (명확한 지명 접미사가 있는 경우만)
@@ -454,7 +433,7 @@ class AdvancedNLPProcessor:
                     # 숫자 + 단위 (명확한 단위가 있는 경우만)
                     (r'\d+(?:,\d{3})*(?:\.\d+)?\s*(?:원|달러|만원|억원|명|개|시간|분|초|미터|킬로)', "QUANTITY", 0.7),
                     # 제품/서비스명 (따옴표나 특수 문자로 둘러싸인 경우)
-                    (r'["\'][가-힣A-Za-z0-9\s]{2,}["\']', "PRODUCT", 0.6)
+                    (r'["\"][가-힣A-Za-z0-9\s]{2,}["\"]', "PRODUCT", 0.6)
                 ]
             else:
                 # 영어 패턴
@@ -536,8 +515,28 @@ class AdvancedNLPProcessor:
         distance = abs(entity1_pos - entity2_pos)
         if distance > 100:  # 너무 멀리 떨어진 엔티티
             return None
-        
-        # 관계 패턴을 전체 텍스트에서 검색
+
+        # 1. 감정(호감/비호감) 관계 패턴 우선 적용
+        emotion_patterns = [
+            (r"([가-힣A-Za-z]+)[은는이가]\s*([가-힣A-Za-z]+)[을를]\s*(좋아해|사랑해)", "호감"),
+            (r"([가-힣A-Za-z]+)[은는이가]\s*([가-힣A-Za-z]+)[을를]\s*(싫어해|미워해)", "비호감"),
+        ]
+        for pattern, relation_type in emotion_patterns:
+            match = re.search(pattern, text)
+            if match:
+                src, tgt, _ = match.groups()
+                # 엔티티 텍스트와 일치하는지 확인
+                if ((entity1.text in src and entity2.text in tgt) or
+                    (entity1.text in tgt and entity2.text in src)):
+                    return Relation(
+                        source=entity1.text,
+                        target=entity2.text,
+                        relation=relation_type,
+                        confidence=0.9,
+                        context=match.group()
+                    )
+
+        # 기존 관계 패턴
         relation_patterns = {
             "소속": [
                 r"([가-힣A-Za-z\s]+)\s*(?:교수|박사|대표|회장|사장|선생|부장|과장|팀장).*?([가-힣A-Za-z]+(?:대학교|대학|회사|기업|연구소|센터))",
