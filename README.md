@@ -1,6 +1,6 @@
 ﻿# AI Text to Graph
 
-**AI Text to Graph**는 자연어 텍스트를 엔터티-관계 기반 그래프 구조로 변환하는 AI 파이프라인 플랫폼입니다.  
+**AI Text to Graph**는 자연어 텍스트를 엔터티-관계 기반 그래프 구조로 변환하는 솔루션 입니다.  
 한국어와 영어를 모두 지원하며, GPU 가속, 하이브리드(NLP+LLM) 모드, LLM Only 모드, 웹 기반 시각화, LLM 통합을 제공합니다.
 
 ---
@@ -12,7 +12,7 @@
 - **GPU 가속**: SentenceTransformer, HuggingFace NER 등에서 자동 GPU 사용
 - **Ollama LLM 통합**: llama3 등 로컬 LLM 지원 (LLM Only 모드)
 - **현대적 UI/UX**: React + Vite 기반, 다크 테마, 카드형 디자인, 직관적 그래프 인터랙션
-- **REST API**: FastAPI 기반, `/api/text-to-graph` 등 엔드포인트 제공
+- **REST API**: FastAPI 기반,  엔드포인트 제공
 
 ---
 
